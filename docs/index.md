@@ -1,131 +1,140 @@
-# Demo服务实例部署文档
+# 基于阿里云DeepGPU实例，用AI画唯美国风少女
+
+>**免责声明：**本服务由第三方提供，我们尽力确保其安全性、准确性和可靠性，但无法保证其完全免于故障、中断、错误或攻击。因此，本公司在此声明：对于本服务的内容、准确性、完整性、可靠性、适用性以及及时性不作任何陈述、保证或承诺，不对您使用本服务所产生的任何直接或间接的损失或损害承担任何责任；对于您通过本服务访问的第三方网站、应用程序、产品和服务，不对其内容、准确性、完整性、可靠性、适用性以及及时性承担任何责任，您应自行承担使用后果产生的风险和责任；对于因您使用本服务而产生的任何损失、损害，包括但不限于直接损失、间接损失、利润损失、商誉损失、数据损失或其他经济损失，不承担任何责任，即使本公司事先已被告知可能存在此类损失或损害的可能性；我们保留不时修改本声明的权利，因此请您在使用本服务前定期检查本声明。如果您对本声明或本服务存在任何问题或疑问，请联系我们。
 
 ## 概述
 
-`(服务概述内容)`。
+stable diffusion可以通过使用文字生成图片，在整个pipeline中，包含CLIP或其他模型从文字中提取隐变量；通过使用UNET或其他生成器模型进行图片生成。通过逐步扩散(Diffusion)，逐步处理图像，使得图像的生成质量更高。**通过本文，客户可以搭建一个stable diffusion的webui框架，并使用aiacctorch加速图片生成速度。在512x512分辨率下，AIACC加速能将推理性能从1.91s(Doggettx**
+**)降低至0.73s，性能提升至2.6倍，同时AIACC支持任意多LORA权重加载，且不影响性能。**
+aiacctorch支持优化基于Torch框架搭建的模型，通过对模型的计算图进行切割，执行层间融合，以及高性能OP实现，大幅度提升PyTorch的推理性能。您无需指定精度和输入尺寸，即可通过JIT编译的方式对PyTorch框架下的深度学习模型进行推理优化。具体详见[手动安装AIACC-Inference（AIACC推理加速）Torch版](https://help.aliyun.com/document_detail/317822.html)。
 
-```
-eg：
+![image.png](1.png)
 
-Demo服务是计算巢提供的示例。
-本文向您介绍如何开通计算巢上的`Demo`服务，以及部署流程和使用说明。
-```
+## 计算巢服务创建
 
-## 计费说明
+### 创建服务
 
-`(计费说明内容)`
+点击[创建链接](https://computenest.console.aliyun.com/user/cn-hangzhou/serviceInstanceCreate?ServiceId=service-2037550c6df74e2caff7)，勾选实例类型，并填写实例密码：
+![image.png](2.png)
+填写登录用户名和密码，用户名和密码在后续登录webui时使用:
+![image.png](3.png)
+点击下一步:确认订单，并勾选服务条款，点击创建：
+![image.png](4.png)
 
-```
-eg:
+稍等片刻，等待部署完成。
 
-Demo在计算巢上的费用主要涉及：
+## 执行图片生成测试
 
-- 所选vCPU与内存规格
-- 系统盘类型及容量
-- 公网带宽
+### 登录页面
 
-计费方式包括：
+点击计算巢控制台中的实例:
+![image.png](5.png)
+点击其中的endpoint网址：
+![image.png](6.png)
 
-- 按量付费（小时）
-- 包年包月
+### 测试
 
-目前提供如下实例：
+输入登录信息中的用户名和密码登录:
+![image.png](7.png)
+进入测试页面:
+![image.png](8.png)
+在测试镜像中，我们预装了4个模型:
 
-| 规格族 | vCPU与内存 | 系统盘 | 公网带宽 |
-| --- | --- | --- | --- |
-| ecs.r6.xlarge | 内存型r6，4vCPU 32GiB | ESSD云盘 200GiB PL0 | 固定带宽1Mbps |
+- guofeng2mix.h1eP.safetensors：国风2 GuoFeng2 模型
+- guofeng34.fSJZ.safetensors：国风3 GuoFeng3 模型
+- guofeng4125DBeta.5sqe.safetensors：国风4 GuoFeng4 XL 模型
+- guofengrealmix21.Awe3.safetensors：国风瑞融 GuoFengRealMix 模型
 
-预估费用在创建实例时可实时看到。
-如需更多规格、其他服务（如集群高可用性要求、企业级支持服务等），请联系我们 [mailto:xx@xx.com](mailto:xx@xx.com)。
+输入prompt
 
-```
-
-## 部署架构
-
-`(部署概述内容)`
-
-## RAM账号所需权限
-
-`(权限策略内容)`
-
-```
-eg: 
-
-Demo服务需要对ECS、VPC等资源进行访问和创建操作，若您使用RAM用户创建服务实例，需要在创建服务实例前，对使用的RAM用户的账号添加相应资源的权限。添加RAM权限的详细操作，请参见[为RAM用户授权](https://help.aliyun.com/document_detail/121945.html)。所需权限如下表所示。
-
-
-| 权限策略名称 | 备注 |
-| --- | --- |
-| AliyunECSFullAccess | 管理云服务器服务（ECS）的权限 |
-
+```bash
+best quality, masterpiece, highres, 1girl,blush,(seductive smile:0.8),star-shaped pupils,china hanfu,hair ornament,necklace, jewelry,Beautiful face,upon_body, tyndall effect,photorealistic, dark studio, rim lighting, two tone lighting,(high detailed skin:1.2), 8k uhd, dslr, soft lighting, high quality, volumetric lighting, candid, Photograph, high resolution, 4k, 8k, Bokeh
 ```
 
-## 部署流程
+和negative prompt:
 
-### 部署步骤
-
-`(部署步骤内容)`
-
-```
-eg:
-
-1. 单击部署链接，进入服务实例部署界面，根据界面提示，填写参数完成部署。
-2. 补充示意图。
-```
-### 部署参数说明
-
-`(部署参数说明内容)`
-
-```
-eg:
-
-您在创建服务实例的过程中，需要配置服务实例信息。下文介绍云XR实时渲染平台服务实例输入参数的详细信息。
-
-| 参数组 | 参数项 | 示例 | 说明 |
-| --- | --- | --- | --- |
-| 服务实例名称 |  | test | 实例的名称 |
-| 地域 |  | 华北2（北京） | 选中服务实例的地域，建议就近选中，以获取更好的网络延时。 |
+```bash
+NSFW, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, bad feet,ugly,pregnant,vore,duplicate,hermaphrodite,trannsexual,mutilated,morbid,extra fingers,fused fingers,too many fingers,long neck,mutation,poorly drawn face,poorly drawn hands,mutated hands,deformed,blurry,bad anatomy,bad proportions,disfigured,cloned face,extra limbs,malformed limbs,gross proportions,missing arms,missing legs,extra arms,extra legs,
 ```
 
-### 验证结果
+使用默认的模型进行推理，输出如下图:
+![image.png](9.png)
+**耗时为0.78s.**
 
-`(验证结果内容)`
+### 模型切换
 
+我们可以根据输入文字以及生成图片风格，切换模型进行模型推理，例如我们可以通过左上侧的选项卡，选择guofengrealmix21.Awe3.safetensors模型，点击生成，则可生成如下图所示的图像:
+![image.png](10.png)
+**耗时仍为0.78s.**
+
+### LORA功能试用
+
+aiacctorch支持LORA加速，但需要使用Lora所支持的模型。例如可以在guofeng2mix.h1eP.safetensors模型的prompt中加入LORA支持文本:  <lora:Omertosa:1>
+![image.png](11.png)
+可见在aiacctorch加速优化下，LORA加载后性能与加载前相同。
+
+### Controlnet功能试用
+
+Controlnet可以帮助我们生成与原始图相似风格或相似布局的图片，这里以canny为例介绍controlnet功能。
+打开Controlnet选项卡，选择controlType为Depth，并上传一张图片，以LENA图为例，进行如下设置：
+![image.png](12.png)
+点击生成：
+![image.png](13.png)
+可见**性能为1.28s**。
+
+### 禁用AIACC加速
+
+我们也可以在settings中禁用aiacctorch。点击settings选项卡，选中aiacctorch，去掉"Apply Aiacctorch in Unet to speedup the whole network inference when loading models"前方的勾，而后点击应用设置：
+![image.png](14.png)
+而后在控制台的运维管理中点击重启服务：
+![image.png](15.png)
+稍等片刻，重新进入页面执行生成命令:
+![image.png](16.png)
+可见关闭aiacctorch并使用xformers后，**推理耗时由0.78s上升至1.39s。**
+
+加入controlnet后，关闭aiacctorch的耗时则会**从1.28s上升至2.26s。**
+![image.png](17.png)
+
+## Q&A
+
+### 如何重启服务
+
+- 可使用如下命令停止服务:
+
+```bash
+    systemctl stop sdwebui 
 ```
-eg:
 
-1. 查看服务实例。服务实例创建成功后，部署时间大约需要2分钟。部署完成后，页面上可以看到对应的服务实例。 
-2. 通过服务实例访问TuGraph。进入到对应的服务实例后，可以在页面上获取到web、rpc、ssh共3种使用方式。
+- 可使用如下命令打开服务:
+
+```bash
+    systemctl start sdwebui
 ```
 
-### 使用Demo
+### 如何查看log
 
-`(服务使用说明内容)`
-
-```
-eg:
-
-请访问Demo官网了解如何使用：[使用文档](https://www.aliyun.com)
+```bash
+    cat /var/log/sdwebui.log
 ```
 
-## 问题排查
+### 出现AttributeError: 'NoneType' object has no attribute 'loaded_loras'怎么解决
 
-`(服务使用说明内容)`
+如果使用dreambooth库，则会导致内置的lora模块失效，则会出现如下问题:
 
+### ![image.png](18.png)
+
+需要解决这个问题，请关闭sd_dreambooth_extension：
+![image.png](19.png)
+而后应用并重启界面，
+然后重启服务：
+
+```bash
+systemctl stop sdwebui
+systemctl start sdwebui
 ```
-eg:
 
-请访问[Demo的问题排查链接](https://www.aliyun.com)获取帮助。
-```
+### 如何设置服务进程退出后自动重启
 
-## 联系我们
+- 修改/lib/systemd/system/sdwebui.service，将Restart设置成always，则服务进程异常退出后会立刻重启。
 
-欢迎访问Demo官网（[https://www.aliyun.com](https://www.aliyun.com)）了解更多信息。
-
-联系邮箱：[https://www.aliyun.com](mailto:https://www.aliyun.com)
-
-社区版开源地址：[https://github.com/](https://github.com/)
-
-扫码关注微信公众号，技术博客、活动通知不容错过：
-
-`(添加二维码图片)`
+![image.png](https://intranetproxy.alipay.com/skylark/lark/0/2023/png/125679/1688709433171-4f512902-448d-4cd7-a212-925882a472fd.png#clientId=u7247f324-846e-4&from=paste&height=626&id=WebZ9&originHeight=626&originWidth=1738&originalType=binary&ratio=1&rotation=0&showTitle=false&size=974058&status=done&style=none&taskId=u102df357-f5bb-4096-b4ab-259fc45fb00&title=&width=1738)
